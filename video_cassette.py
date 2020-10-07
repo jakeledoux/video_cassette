@@ -10,10 +10,15 @@
     contactjakeledoux@gmail.com
 '''
 
+import argparse
 import math
+from sys import float_repr_style
 import numpy as np
 import os
+import re
 from typing import List, Tuple, Union
+
+RE_VECTOR2 = re.compile(r'\(\s*(\d+)\s*,\s*(\d+)\s*\)')
 
 
 class Tape(object):
@@ -130,7 +135,13 @@ class Tape(object):
         '''
         # Load header and contents from bytes
         file_name = tape_bytes[:Tape.HEADER_FILENAME_LEN].decode('ascii').strip()
-        byte_len = int(tape_bytes[Tape.HEADER_FILENAME_LEN:Tape.HEADER_LEN].decode('ascii').strip())
+        try:
+            byte_len = int(tape_bytes[Tape.HEADER_FILENAME_LEN:Tape.HEADER_LEN].decode('ascii').strip())
+        except ValueError as e:
+            raise Exception(
+                'Error decoding file. Either the video has been ' + \
+                'overcompressed or the data blocks were incorrectly ' + \
+                'specified. Did you forget to set the col and row numbers?')
         file_bytes = tape_bytes[Tape.HEADER_LEN:]
         # Make sure contents are of appropriate length
         assert len(file_bytes) >= byte_len
@@ -321,7 +332,74 @@ def load_frames(filename: str, cols: int = 16, rows: int = 9) -> np.ndarray:
     return np.array(read_frames)
 
 
+def str_to_vector2(arg: str) -> Tuple[int, int]:
+    ''' For argparse. Converts a str in format (int, int) to an equivilant
+        tuple.
+
+        :param arg: The argument string
+        :returns: Parsed tuple
+    '''
+    match = RE_VECTOR2.match(arg)
+    if match:
+        return tuple((int(n) for n in match.groups()))
+    else:
+        raise argparse.ArgumentTypeError(f'"{arg}" is not a valid tuple. Did you use whitespace without quotes?')
+
+
+def enforce_extension(filename: Union[str, None], extensions: Tuple[str, ...],
+                      fallback_ext: Union[str, None] = None
+                      ) -> Union[str, None]:
+    ''' Replaces file extension if necessary.
+        :param filename: Filename string to process.
+        :param extensions: Tuple containing all valid extensions
+        :param fallback_ext: The extension to use if `filename` needs to be
+            changed. Defaults to first extension in `extensions`.
+        :returns: Filename once passed validation or corrected. Will return
+            None if `filename` is None.
+    '''
+    if filename is None:
+        return None
+
+    fallback_ext = fallback_ext or extensions[0]
+    f_name, f_ext = os.path.splitext(filename)
+    if f_ext.lower() not in extensions:
+        f_ext = fallback_ext
+    return f_name + f_ext
+
+
 if __name__ == '__main__':
-    import sys
-    source = Tape.from_file(' '.join(sys.argv[1:]))
-    source.write_video(resolution=(1280, 720), cols=320, rows=180)
+    parser = argparse.ArgumentParser(
+        description='Video Cassette can encode and decode files from video.')
+
+    parser.add_argument('mode', type=str,
+                        help='Either encode or decode')
+    parser.add_argument('file', type=str,
+                        help='Input file.')
+    parser.add_argument('--out', type=str,
+                        help='Where to store the output file.')
+    parser.add_argument('--res', type=str_to_vector2,
+                        help='Resolution of video output as (W,H). Must match \
+                        aspect ratio of data blocks. Defaults to (1280, 720)')
+    parser.add_argument('--blocks', type=str_to_vector2,
+                        help='Number of data blocks as (C,R). Defaults to \
+                        (16, 9).')
+
+    args = parser.parse_args()
+
+    cols, rows = args.blocks or (16, 9)
+
+    if os.path.exists(args.file):
+        if args.mode.lower() == 'encode':
+            tape = Tape.from_file(args.file)
+            tape.write_video(enforce_extension(args.out, ('.mp4', '.mkv')),
+                             resolution=args.res or (1280, 720),
+                             cols=cols, rows=rows)
+            print(f"'{args.file}' successfully encoded to '{args.out or enforce_extension(tape.file_name, ('.mp4',))}'.")
+        elif args.mode.lower() == 'decode':
+            tape = Tape.from_video(args.file, cols=cols, rows=rows)
+            tape.write_file()
+            print(f"'{args.file}' successfully decoded to '{args.out or tape.file_name}'.")
+        else:
+            print(f'{args.mode} is not a valid mode (encode, decode)')
+    else:
+        print(f'Can not find file: {args.file}')
