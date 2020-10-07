@@ -6,6 +6,14 @@ uploaded to YouTube.
 
 Inspired by [this reddit post](https://www.reddit.com/r/Python/comments/j620fv/i_made_a_program_that_gives_me_infinite_storage/).
 
+As a concept it works great, however in order to actually provide any sort
+of practical use it needs to be faster by at least an order of magnitude.
+Thanks to video compression, I've found I need around 8 pixels per bit for
+a truly reliable transfer. Currently that means the encoding takes ages
+for any files larger than a few megabytes. I've got a couple optimization
+ideas at the moment, but if anyone sees anything obvious I'd love it if
+you'd create an issue or even a pull request.
+
 ## Example usage
 
 ### Write a file to video
