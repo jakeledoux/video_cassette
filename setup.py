@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="Jake Ledoux",
     author_email="contactjakeledoux@gmail.com",
-    description="A simple package for encoding any file into video form.",
+    description="A simple python package for encoding any file into video form.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/jakeledoux/video_cassette",
