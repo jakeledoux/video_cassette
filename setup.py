@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="video-cassette-jakeledoux", # Replace with your own username
+    name="video-cassette", # Replace with your own username
     version="0.0.1",
     author="Jake Ledoux",
     author_email="contactjakeledoux@gmail.com",
@@ -18,5 +18,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.6'
 )
