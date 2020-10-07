@@ -45,8 +45,7 @@ class Tape(object):
             :param filename: The filename to write to, defaults to the source
                 file's name with the extension '.tape'.
         '''
-        if filename is None:
-            filename = os.path.splitext(self.file_name)[0] + '.tape'
+        filename = filename or os.path.splitext(self.file_name)[0] + '.tape'
         with open(filename, 'wb') as f:
             f.write(self.header + self.file_bytes)
 
@@ -57,11 +56,7 @@ class Tape(object):
                 the original directory and name.
         '''
         # User header path if not overridden
-        if path_override is None:
-            file_location = os.path.join(self.file_path, self.file_name)
-        # Use override path
-        else:
-            file_location = path_override
+        file_location = path_override or os.path.join(self.file_path, self.file_name)
 
         with open(file_location, 'wb') as f:
             f.write(self.file_bytes)
@@ -80,8 +75,7 @@ class Tape(object):
             :param rows: The number of data blocks to have per column,
                 defaults to 9.
         '''
-        if filename is None:
-            filename = os.path.splitext(self.file_name)[0] + '.mp4'
+        filename = filename or os.path.splitext(self.file_name)[0] + '.mp4'
         write_frames(filename, bytes_to_frames(self.bytes, cols, rows), resolution)
 
     @property
