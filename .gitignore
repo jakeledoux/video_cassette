@@ -6,6 +6,7 @@ __pycache__
 *.pyc
 *.bak
 *.tape
+*.mp3
 *.mp4
 *.mkv
 *.jpg
