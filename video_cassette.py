@@ -328,5 +328,6 @@ def load_frames(filename: str, cols: int = 16, rows: int = 9) -> np.ndarray:
 
 
 if __name__ == '__main__':
-    source = Tape.from_file(' '.join(sys.argv[:]))
-    source.write_video('perf_test.mp4', resolution=(1280, 720), cols=640, rows=360)
+    import sys
+    source = Tape.from_file(' '.join(sys.argv[1:]))
+    source.write_video(resolution=(1280, 720), cols=320, rows=180)
