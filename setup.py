@@ -4,8 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="video-cassette", # Replace with your own username
-    version="0.0.1",
+    name="video-cassette",
+    version="0.0.3",
     author="Jake Ledoux",
     author_email="contactjakeledoux@gmail.com",
     description="A simple python package for encoding any file into video form.",
