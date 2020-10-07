@@ -2,3 +2,6 @@
 __pycache__
 *.pyc
 *.bak
+*.tape
+*.mp4
+*.zip

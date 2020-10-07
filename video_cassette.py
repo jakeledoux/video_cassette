@@ -210,7 +210,7 @@ def bytes_to_frames(raw_bytes: bytes, cols: int = 16, rows: int = 9) -> np.ndarr
         :returns: Array of frames as 3D Numpy array. Dimensions will be 
             (nframes, rows, cols).
     '''
-    bits = np.array(bytes_to_bit_list(raw_bytes))
+    bits = np.array(bytes_to_bit_list(raw_bytes), dtype=np.uint8)
     
     # Pad and reshape to fit into frames of size (cols, rows)
     bits.resize((math.ceil(float(len(bits)) / (cols * rows)), rows, cols))
@@ -229,7 +229,7 @@ def frames_to_bytes(frames: np.ndarray) -> bytes:
 
 def write_frames(filename: str, frames: np.ndarray,
                  resolution: Tuple[int, int] = (1920, 1080),
-                 framerate: int = 30):
+                 framerate: int = 30, use_disk: bool = True):
     ''' Upscales frames and writes them to MP4 file.
         :param filename: The path + filename to write video to. (Should end in
             .mp4 extension)
@@ -243,37 +243,59 @@ def write_frames(filename: str, frames: np.ndarray,
             It's recommended to set this to something common like 24, 30, or
             60. Anything above 60 frames per second will break YouTube
             compatibility. Defaults to 30 FPS.
+        :param use_disk: If true, resized images will be temporarily written to
+            disk until final video is created. Otherwise, all images will be
+            kept in memory until completion. While keeping all images in memory
+            is much faster, this is bad if you're using a high resolution
+            and/or lots of frames as you will quickly run out of memory.
     '''
+    import cv2
     import ffmpeg
+    import shutil
+    import tempfile
 
     width, height = resolution
 
     # Upscale frames
-    sample_frame = np.ones((height // frames[0].shape[0], width // frames[0].shape[1]))
-
     new_frames = list()
+    tmp_dir = os.path.join(tempfile.gettempdir(), 'videocassette')
+    if not os.path.exists(tmp_dir):
+        os.mkdir(tmp_dir)
     for idx, frame in enumerate(frames):
         if height // frame.shape[0] == width // frame.shape[1]:
             print(f'Pre-processing frame: {idx + 1:>{len(str(frames.shape[0]))}}/{frames.shape[0]}')
-            new_frames.append(np.kron(frame, sample_frame))
+            new_frame = cv2.resize(frame, resolution, interpolation=cv2.INTER_NEAREST)
+            if use_disk:
+                cv2.imwrite(os.path.join(tmp_dir, f'{idx + 1:0>{len(str(frames.shape[0]))}}.jpg'), new_frame * 255)
+            else:
+                new_frames.append(new_frame)
         else:
             raise Exception('Resolution aspect ratio is not equal to frame aspect ratio.')
         
+    # Write frames to video
     new_frames = np.array(new_frames)
 
-    # Write frames to video
-    process = (
-        ffmpeg.input('pipe:', format='rawvideo', pix_fmt='gray', s=f'{width}x{height}', r=framerate)
-            .output(filename, pix_fmt='yuv420p', vcodec='libx264')
-            .overwrite_output()
-            .run_async(pipe_stdin=True)
-    )
-    for frame in new_frames * 255:
-        process.stdin.write(
-            frame.astype(np.uint8).tobytes()
+    if use_disk:
+        process = (
+            ffmpeg.input(os.path.join(tmp_dir, f'%0{len(str(frames.shape[0]))}d.jpg'), pix_fmt='gray', s=f'{width}x{height}', r=framerate)
+                .output(filename, pix_fmt='yuv420p', vcodec='libx264')
+                .overwrite_output()
+                .run()
         )
-    process.stdin.close()
-    process.wait()
+        shutil.rmtree(tmp_dir)
+    else:
+        process = (
+            ffmpeg.input('pipe:', format='rawvideo', pix_fmt='gray', s=f'{width}x{height}', r=framerate)
+                .output(filename, pix_fmt='yuv420p', vcodec='libx264')
+                .overwrite_output()
+                .run_async(pipe_stdin=True)
+        )
+        for frame in new_frames:
+            process.stdin.write(
+                frame.astype(np.uint8).tobytes()
+            )
+        process.stdin.close()
+        process.wait()
 
 
 def load_frames(filename: str, cols: int = 16, rows: int = 9) -> np.ndarray:
@@ -303,3 +325,8 @@ def load_frames(filename: str, cols: int = 16, rows: int = 9) -> np.ndarray:
             break
 
     return np.array(read_frames)
+
+
+if __name__ == '__main__':
+    source = Tape.from_file(' '.join(sys.argv[:]))
+    source.write_video('perf_test.mp4', resolution=(1280, 720), cols=640, rows=360)
