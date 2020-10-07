@@ -68,7 +68,7 @@ class Tape(object):
 
     def write_video(self, filename: Union[str, None] = None,
                     resolution: Tuple[int, int] = (1920, 1080),
-                    cols: int = 16, rows: int = 9):
+                    cols: int = 16, rows: int = 9, use_disk: bool = True):
         ''' Writes Tape to MP4 file.
 
             :param filename: The filename to write to, defaults to the source
@@ -79,9 +79,15 @@ class Tape(object):
                 defaults to 16.
             :param rows: The number of data blocks to have per column,
                 defaults to 9.
+            :param use_disk: If true, resized images will be temporarily written to
+                disk until final video is created. Otherwise, all images will be
+                kept in memory until completion. While keeping all images in memory
+                is much faster, this is bad if you're using a high resolution
+                and/or lots of frames as you will quickly run out of memory.
         '''
         filename = filename or os.path.splitext(self.file_name)[0] + '.mp4'
-        write_frames(filename, bytes_to_frames(self.bytes, cols, rows), resolution)
+        write_frames(filename, bytes_to_frames(self.bytes, cols, rows),
+                     resolution, use_disk=use_disk)
 
     @property
     def bytes(self) -> bytes:
@@ -269,11 +275,11 @@ def write_frames(filename: str, frames: np.ndarray,
     for idx, frame in enumerate(frames):
         if height // frame.shape[0] == width // frame.shape[1]:
             print(f'Pre-processing frame: {idx + 1:>{len(str(frames.shape[0]))}}/{frames.shape[0]}')
-            new_frame = cv2.resize(frame, resolution, interpolation=cv2.INTER_NEAREST)
             if use_disk:
+                new_frame = cv2.resize(frame, resolution, interpolation=cv2.INTER_NEAREST)
                 cv2.imwrite(os.path.join(tmp_dir, f'{idx + 1:0>{len(str(frames.shape[0]))}}.jpg'), new_frame * 255)
             else:
-                new_frames.append(new_frame)
+                new_frames.append(frame * 255)
         else:
             raise Exception('Resolution aspect ratio is not equal to frame aspect ratio.')
         
@@ -297,7 +303,7 @@ def write_frames(filename: str, frames: np.ndarray,
         )
         for frame in new_frames:
             process.stdin.write(
-                frame.astype(np.uint8).tobytes()
+                cv2.resize(frame, resolution, interpolation=cv2.INTER_NEAREST).astype(np.uint8).tobytes()
             )
         process.stdin.close()
         process.wait()
@@ -382,18 +388,26 @@ if __name__ == '__main__':
                         aspect ratio of data blocks. Defaults to (1280, 720)')
     parser.add_argument('--blocks', type=str_to_vector2,
                         help='Number of data blocks as (C,R). Defaults to \
-                        (16, 9).')
+                        (640, 360).')
+    parser.add_argument('--use-disk', action='store_true',
+                        help='Will write frames to disk temporarily instead \
+                              of keeping everything in memory. This will \
+                              take much longer and use of disk space, but is \
+                              recommended for large files so you don\'t run \
+                              out of memory during the encoding process.')
 
     args = parser.parse_args()
 
-    cols, rows = args.blocks or (16, 9)
+    cols, rows = args.blocks or (640, 360)
 
     if os.path.exists(args.file):
         if args.mode.lower() == 'encode':
+            print('Loading file contents into memory...')
             tape = Tape.from_file(args.file)
+            print('Done. Beginning video encoding...')
             tape.write_video(enforce_extension(args.out, ('.mp4', '.mkv')),
                              resolution=args.res or (1280, 720),
-                             cols=cols, rows=rows)
+                             cols=cols, rows=rows, use_disk=args.use_disk)
             print(f"'{args.file}' successfully encoded to '{args.out or enforce_extension(tape.file_name, ('.mp4',))}'.")
         elif args.mode.lower() == 'decode':
             tape = Tape.from_video(args.file, cols=cols, rows=rows)
