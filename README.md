@@ -49,3 +49,5 @@ from video_cassette import Tape
 secrets = Tape.from_file('my_secrets.txt')
 tx.transmit(secrets.bytes)
 ```
+
+As you can see, this library is **incredibly** simple to use because all the work is done under the hood. But don't worry, all the functions and methods used to do that work are still available to you if you want to use them, so you can get as low-level as you want and tinker around!
