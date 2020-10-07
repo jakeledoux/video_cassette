@@ -24,7 +24,7 @@ from video_cassette import Tape
 mike = Tape.from_file('michael_jackson.jpg')
 # `write_video()` uses the original name by default, just changing the file
 # extension to '.mp4'.
-mike.write_video(resolution=(1280, 720), cols=320, rows=180)
+mike.write_video(resolution=(1280, 720), cols=640, rows=360)
 ```
 
 ### Read a file from video
@@ -34,7 +34,7 @@ from video_cassette import Tape
 
 # You must specify cols+rows when loading unless you encoded with the default
 # of 16x9.
-mike = Tape.from_video('mike.mp4', cols=320, rows=180)
+mike = Tape.from_video('mike.mp4', cols=640, rows=360)
 # Original filename is stored within the video, calling `write_file()` uses
 # that filename be default. This can be overridden.
 mike.write_file()
