@@ -4,4 +4,7 @@ __pycache__
 *.bak
 *.tape
 *.mp4
+*.jpg
+*.png
+*.gif
 *.zip
